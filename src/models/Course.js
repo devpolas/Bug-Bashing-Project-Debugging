@@ -17,7 +17,7 @@ const lessonSchema = new Schema(
       },
     ],
   },
-  { _id: true }
+  { _id: true },
 );
 
 const moduleSchema = new Schema(
@@ -25,7 +25,7 @@ const moduleSchema = new Schema(
     title: { type: String, required: true },
     lessons: [lessonSchema],
   },
-  { _id: true }
+  { _id: true },
 );
 
 const courseSchema = new Schema(
@@ -44,7 +44,7 @@ const courseSchema = new Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = model("Course", courseSchema);
