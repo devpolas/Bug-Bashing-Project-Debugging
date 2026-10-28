@@ -2,6 +2,7 @@
 
 const mongoose = require("mongoose");
 const dns = require("dns");
+const dotenv = require("dotenv").config();
 
 // Ensure IPv4 first to resolve MongoDB Atlas SRV query issues on Windows
 if (dns.setDefaultResultOrder) {
@@ -17,8 +18,19 @@ const connectDB = async () => {
     return cachedConnection;
   }
 
-  const uri = process.env.MONGODB_URI || process.env.MONGO_URI; // Support both
-  if (!uri) throw new Error("MONGODB_URI or MONGO_URI missing in .env");
+  const db_user = process.env.DATABASE_USER;
+  const db_password = process.env.DATABASE_PASSWORD;
+  const db_url = process.env.DATABASE_URL;
+
+  if (!db_user || !db_password || !db_url) {
+    throw new Error("Database credentials are missing!");
+  }
+
+  const uri = db_url
+    .replace("<DB_USER>", db_user)
+    .replace("<DB_PASSWORD>", db_password);
+
+  if (!uri) throw new Error("MONGODB_URI or MONGO_URI is missing");
 
   // If connection is in progress, wait for it
   if (mongoose.connection.readyState === 2) {
@@ -38,7 +50,7 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
       socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
     });
-    
+
     cachedConnection = connection;
     console.log("MongoDB Connected ✅");
     return connection;
