@@ -5,7 +5,7 @@ const enrollCourse = async (req, res) => {
     const enrollment = await enrollmentService.enrollCourse(
       req.user.id,
       req.params.courseId,
-      req.body.batchId
+      req.body.batchId,
     );
     res.status(201).json(enrollment);
   } catch (err) {
@@ -25,12 +25,13 @@ const myEnrollments = async (req, res) => {
 const completeLesson = async (req, res) => {
   try {
     const data = await enrollmentService.completeLesson(
+      req.user.id,
       req.params.enrollId,
-      req.body.lessonId
+      req.body.lessonId,
     );
     res.json(data);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(err.statusCode || 400).json({ message: err.message });
   }
 };
 

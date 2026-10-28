@@ -5,26 +5,28 @@ const enrollCourse = async (studentId, courseId, batchId = null) => {
   const course = await Course.findById(courseId);
   if (!course) throw new Error("Course not found");
 
-  // Check if already enrolled
-  let enrollment = await Enrollment.findOne({
+  const existingEnrollment = await Enrollment.findOne({
     student: studentId,
     course: courseId,
   });
-
-  if (!enrollment) {
-    // Inverted logic bug: throws error when NOT enrolled
+  if (existingEnrollment) {
     throw new Error("Already enrolled in this course");
   }
 
-  // Create new enrollment
-  enrollment = await Enrollment.create({
+  if (batchId) {
+    const batchExists = course.batches?.some(
+      (batch) => String(batch._id) === String(batchId),
+    );
+    if (!batchExists)
+      throw new Error("Selected batch does not belong to this course");
+  }
+
+  return Enrollment.create({
     student: studentId,
     course: courseId,
-    batchId,
+    batchId: batchId || undefined,
     progress: { completedLessons: [], percent: 0 },
   });
-
-  return enrollment;
 };
 
 const getMyEnrollments = async (studentId) => {
@@ -33,32 +35,48 @@ const getMyEnrollments = async (studentId) => {
     .sort({ createdAt: -1 });
 };
 
-const completeLesson = async (enrollId, lessonId) => {
+const completeLesson = async (studentId, enrollId, lessonId) => {
   const enrollment = await Enrollment.findById(enrollId);
   if (!enrollment) throw new Error("Enrollment not found");
+  if (String(enrollment.student) !== String(studentId)) {
+    const error = new Error("You are not allowed to update this enrollment");
+    error.statusCode = 403;
+    throw error;
+  }
 
-  // avoid duplicates
-  const alreadyDone = enrollment.progress.completedLessons
-    .map(String)
-    .includes(String(lessonId));
+  const course = await Course.findById(enrollment.course);
+  if (!course) throw new Error("Course not found");
 
+  const lessonExists = course.syllabus?.some((module) =>
+    module.lessons?.some((lesson) => String(lesson._id) === String(lessonId)),
+  );
+  if (!lessonExists) throw new Error("Lesson not found");
+
+  if (!enrollment.progress) {
+    enrollment.progress = { completedLessons: [], percent: 0 };
+  }
+  if (!Array.isArray(enrollment.progress.completedLessons)) {
+    enrollment.progress.completedLessons = [];
+  }
+
+  const alreadyDone = enrollment.progress.completedLessons.some(
+    (completedId) => String(completedId) === String(lessonId),
+  );
   if (!alreadyDone) {
     enrollment.progress.completedLessons.push(lessonId);
   }
 
-  // calculate percent
-  const course = await Course.findById(enrollment.course);
-  const totalLessons = course.syllabus.reduce(
-    (sum, mod) => sum + mod.lessons.length,
-    0
+  const totalLessons = (course.syllabus || []).reduce(
+    (sum, module) => sum + (module.lessons?.length || 0),
+    0,
   );
-
   const completed = enrollment.progress.completedLessons.length;
   enrollment.progress.percent =
-    totalLessons === 0 ? 0 : Math.round((completed / totalLessons) * 100);
+    totalLessons === 0
+      ? 0
+      : Math.min(100, Math.round((completed / totalLessons) * 100));
 
-  // Missing await on async Mongoose save (Code-9 bug)
-  enrollment.save();
+  await enrollment.save();
   return enrollment;
 };
 
