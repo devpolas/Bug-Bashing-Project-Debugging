@@ -3,14 +3,7 @@
 const Course = require("../models/Course");
 
 const getCourses = async (query) => {
-  const {
-    page = 1,
-    limit = 8,
-    search = "",
-    sort = "",
-    category,
-    tags,
-  } = query;
+  const { page = 1, limit = 8, search = "", sort = "", category, tags } = query;
 
   // Validate and sanitize pagination parameters
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -30,7 +23,10 @@ const getCourses = async (query) => {
   }
 
   if (tags && typeof tags === "string") {
-    const tagArray = tags.split(",").map(t => t.trim()).filter(t => t); // "mern,react"
+    const tagArray = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t); // "mern,react"
     if (tagArray.length > 0) {
       filter.tags = { $in: tagArray };
     }
@@ -43,10 +39,7 @@ const getCourses = async (query) => {
   const skip = (pageNum - 1) * limitNum;
 
   const [courses, total] = await Promise.all([
-    Course.find(filter)
-      .sort(sortObj)
-      .skip(skip)
-      .limit(limitNum),
+    Course.find(filter).sort(sortObj).skip(skip).limit(limitNum),
     Course.countDocuments(filter),
   ]);
 
