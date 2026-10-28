@@ -6,9 +6,10 @@ const errorHandler = (err, req, res, next) => {
 
   // Don't expose error details in production
   const response = {
-    message: process.env.NODE_ENV === "production" && status === 500 
-      ? "Internal server error" 
-      : message,
+    message:
+      process.env.NODE_ENV === "production" && status === 500
+        ? "Internal server error"
+        : message,
   };
 
   // Include stack trace in development
