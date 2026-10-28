@@ -6,7 +6,10 @@ const submitQuiz = async (studentId, payload) => {
   const { courseId, lessonId, answers } = payload;
   // answers = [selectedIndex, selectedIndex, ...]
 
-  const enrolled = await Enrollment.findOne({ student: studentId, course: courseId });
+  const enrolled = await Enrollment.findOne({
+    student: studentId,
+    course: courseId,
+  });
   if (!enrolled) throw new Error("You are not enrolled in this course");
 
   const course = await Course.findById(courseId);
@@ -23,6 +26,18 @@ const submitQuiz = async (studentId, payload) => {
   }
   if (!quiz) throw new Error("Lesson not found");
   if (quiz.length === 0) throw new Error("No quiz in this lesson");
+  if (
+    !Array.isArray(answers) ||
+    answers.length !== quiz.length ||
+    answers.some(
+      (answer, index) =>
+        !Number.isInteger(answer) ||
+        answer < 0 ||
+        answer >= (quiz[index]?.options?.length || 0),
+    )
+  ) {
+    throw new Error("Invalid quiz answers");
+  }
 
   let score = 0;
   quiz.forEach((q, i) => {
@@ -30,8 +45,7 @@ const submitQuiz = async (studentId, payload) => {
   });
 
   const total = quiz.length;
-  // Code-4 bug: multiplied by 10 instead of 100
-  const percent = Math.round((score / total) * 10);
+  const percent = Math.round((score / total) * 100);
 
   // Check if student already submitted this quiz (optional - allow retakes)
   // If you want to prevent duplicates, uncomment the following:
@@ -98,8 +112,11 @@ const getQuizStats = async (studentId, courseId) => {
   const latestSubmissions = {};
   submissions.forEach((sub) => {
     const lessonIdStr = String(sub.lessonId);
-    if (!latestSubmissions[lessonIdStr] ||
-      new Date(sub.createdAt) > new Date(latestSubmissions[lessonIdStr].createdAt)) {
+    if (
+      !latestSubmissions[lessonIdStr] ||
+      new Date(sub.createdAt) >
+        new Date(latestSubmissions[lessonIdStr].createdAt)
+    ) {
       latestSubmissions[lessonIdStr] = sub;
     }
   });
