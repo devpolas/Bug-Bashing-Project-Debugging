@@ -5,25 +5,40 @@ const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
 const { sendWelcomeEmail } = require("./email.service");
 
-const register = async ({ name, email, password, role, adminKey }) => {
-  const exists = await User.findOne({ email });
-  if (exists) throw new Error("Email already registered");
+const createError = (message, statusCode) =>
+  Object.assign(new Error(message), { statusCode });
+
+const register = async ({ name, email, password, adminKey }) => {
+  const normalizedEmail = email.trim().toLowerCase();
+  const exists = await User.findOne({ email: normalizedEmail });
+  if (exists) throw createError("Email already registered", 409);
+
+  let role = "student";
+  if (adminKey) {
+    if (
+      !process.env.ADMIN_REGISTRATION_KEY ||
+      adminKey !== process.env.ADMIN_REGISTRATION_KEY
+    ) {
+      throw createError("Invalid admin registration key", 403);
+    }
+    role = "admin";
+  }
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // Code-12 bug: user can pass role directly in payload without adminKey verification
+  // Public registration always creates students; admin creation requires the server-side key.
   const user = await User.create({
-    name,
-    email,
+    name: name.trim(),
+    email: normalizedEmail,
     passwordHash,
-    role: role || "student",
+    role,
   });
 
   const token = generateToken({ id: user._id, role: user.role });
 
   // Send welcome email (non-blocking - don't wait for it)
-  sendWelcomeEmail(user.email, user.name).catch(err => {
-    console.error('Email sending failed (non-critical):', err.message);
+  sendWelcomeEmail(user.email, user.name).catch((err) => {
+    console.error("Email sending failed (non-critical):", err.message);
   });
 
   return {
@@ -33,12 +48,13 @@ const register = async ({ name, email, password, role, adminKey }) => {
 };
 
 const login = async ({ email, password }) => {
-  const user = await User.findOne({ email });
-  if (!user) throw new Error("Invalid email or password");
+  const user = await User.findOne({ email: email.trim().toLowerCase() });
+  if (!user) throw createError("Invalid email or password", 401);
 
-  // Code-5 bug: plaintext equality check instead of bcrypt.compare
-  const match = (password === user.passwordHash);
-  if (!match) throw new Error("Invalid email or password");
+  if (user.isBanned) throw createError("This account has been disabled", 403);
+
+  const match = await bcrypt.compare(password, user.passwordHash);
+  if (!match) throw createError("Invalid email or password", 401);
 
   const token = generateToken({ id: user._id, role: user.role });
 

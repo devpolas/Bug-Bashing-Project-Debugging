@@ -7,7 +7,9 @@ const register = async (req, res) => {
     const data = await authService.register(req.body);
     res.status(201).json(data);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || "Registration failed" });
   }
 };
 
@@ -16,7 +18,9 @@ const login = async (req, res) => {
     const data = await authService.login(req.body);
     res.json(data);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || "Login failed" });
   }
 };
 
@@ -30,4 +34,3 @@ const me = async (req, res) => {
 };
 
 module.exports = { register, login, me };
-
