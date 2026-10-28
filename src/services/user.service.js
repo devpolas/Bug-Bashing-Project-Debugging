@@ -18,7 +18,7 @@ const updateUserRole = async (userId, role) => {
   const user = await User.findByIdAndUpdate(
     userId,
     { role },
-    { new: true }
+    { new: true },
   ).select("-passwordHash");
   if (!user) throw new Error("User not found");
   return user;

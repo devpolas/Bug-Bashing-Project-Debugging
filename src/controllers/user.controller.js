@@ -14,7 +14,9 @@ const deleteUser = async (req, res) => {
     const { id } = req.params;
     // Prevent deleting yourself
     if (id === req.user.id) {
-      return res.status(400).json({ message: "Cannot delete your own account" });
+      return res
+        .status(400)
+        .json({ message: "Cannot delete your own account" });
     }
     const result = await userService.deleteUser(id);
     res.json(result);
